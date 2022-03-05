@@ -60,6 +60,19 @@ export function ParseSearchResult(html: string, options?: ParseSearchInterface):
                 }
                 break;
             }
+            case 'genericvideo': {
+                try {
+                    const parsed = parseVideo(detail);
+                    if (parsed) {
+                        if (options.unblurNSFWThumbnails) parsed.thumbnails.forEach(unblurThumbnail);
+                        results.push(parsed);
+                    }
+                }
+                catch(e) {
+                }
+
+                break;
+            }
             case 'channel': {
                 const parsed = parseChannel(detail);
                 if (parsed) results.push(parsed);
