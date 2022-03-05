@@ -35,6 +35,8 @@ export async function yt_search(search: string, options: ParseSearchInterface = 
             case 'video':
                 url += SearchType.Video;
                 break;
+            case 'genericvideo':
+                break;
             default:
                 throw new Error(`Unknown search type: ${options.type}`);
         }
