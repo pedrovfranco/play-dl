@@ -60,7 +60,7 @@ enum AudioPlayerStatus {
 interface SearchOptions {
     limit?: number;
     source?: {
-        youtube?: 'video' | 'playlist' | 'channel';
+        youtube?: 'video' | 'genericvideo' | 'playlist' | 'channel';
         spotify?: 'album' | 'playlist' | 'track';
         soundcloud?: 'tracks' | 'playlists' | 'albums';
         deezer?: 'track' | 'playlist' | 'album';
