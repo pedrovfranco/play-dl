@@ -14,7 +14,7 @@ const BLURRED_THUMBNAILS = [
 ];
 
 export interface ParseSearchInterface {
-    type?: 'video' | 'playlist' | 'channel';
+    type?: 'video' | 'genericvideo' | 'playlist' | 'channel';
     limit?: number;
     language?: string;
     unblurNSFWThumbnails?: boolean;
