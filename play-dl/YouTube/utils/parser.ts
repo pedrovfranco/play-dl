@@ -40,16 +40,13 @@ export function ParseSearchResult(html: string, options?: ParseSearchInterface):
     options.unblurNSFWThumbnails ??= false;
 
     const data = html
-    .split('var ytInitialData = ')?.[1]
-    ?.split(';</script>')[0]
-    .split(/;\s*(var|const|let)\s/)[0];
-
+        .split('var ytInitialData = ')?.[1]
+        ?.split(';</script>')[0]
+        .split(/;\s*(var|const|let)\s/)[0];
     const json_data = JSON.parse(data);
-
     const results = [];
     const details =
-    json_data.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents.flatMap(
-            (s: any) => s.itemSectionRenderer?.contents
+        json_data.contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents.flatMap(            (s: any) => s.itemSectionRenderer?.contents
         );
     for (const detail of details) {
         if (hasLimit && results.length === options.limit) break;
