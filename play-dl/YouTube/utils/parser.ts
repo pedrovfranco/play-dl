@@ -3,6 +3,9 @@ import { YouTubePlayList } from '../classes/Playlist';
 import { YouTubeChannel } from '../classes/Channel';
 import { YouTube } from '..';
 import { YouTubeThumbnail } from '../classes/Thumbnail';
+const jitson = require('jitson');
+
+const parser = jitson({sampleInterval: 10});
 
 const BLURRED_THUMBNAILS = [
     '-oaymwEpCOADEI4CSFryq4qpAxsIARUAAAAAGAElAADIQj0AgKJDeAHtAZmZGUI=',
@@ -41,7 +44,17 @@ export function ParseSearchResult(html: string, options?: ParseSearchInterface):
     const data = html
         .split('var ytInitialData = ')?.[1]
         ?.split(';</script>')[0];
-    const json_data = JSON.parse(data);
+    
+    
+    // const json_data = JSON.parse(data);
+
+    const json_data = parser(data);
+
+    if (parser.schema != null)
+    {
+        console.log(parser.schema);
+    }
+
     const results = [];
     const details =
         json_data.contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents.flatMap(
