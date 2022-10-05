@@ -3,10 +3,7 @@ import { YouTubePlayList } from '../classes/Playlist';
 import { YouTubeChannel } from '../classes/Channel';
 import { YouTube } from '..';
 import { YouTubeThumbnail } from '../classes/Thumbnail';
-// const jitson = require('jitson');
-
-// const parser = jitson({sampleInterval: 10});
-// let loggedSchema = false;
+const { performance } = require('perf_hooks');
 
 const simdjson = require('simdjson');
 
@@ -45,25 +42,23 @@ export function ParseSearchResult(html: string, options?: ParseSearchInterface):
     options.unblurNSFWThumbnails ??= false;
 
     const data = html
-        .split('var ytInitialData = ')?.[1]
-        ?.split(';</script>')[0]
-        .split(/;\s*(var|const|let)\s/)[0];
-    
-    // const json_data = JSON.parse(data);
+    .split('var ytInitialData = ')?.[1]
+    ?.split(';</script>')[0]
+    .split(/;\s*(var|const|let)\s/)[0];
+     
+    let startTime = performance.now();
+    const json_data = JSON.parse(data);
+    var contents = json_data.contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents;
+    let endTime = performance.now();
+    console.log(`JSON.parse took ${endTime - startTime} milliseconds`)
 
-    // const json_data = parser(data);
-
-    // if (parser.schema != null && !loggedSchema)
-    // {
-    //     console.log(parser.schema);
-    //     loggedSchema = true;
-    // }
-
-
-    // var contents = json_data.contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents;
-
+    startTime = performance.now();
     const JSONbuffer = simdjson.lazyParse(data); // external (C++) parsed JSON object
 	var contents = JSONbuffer.valueForKeyPath("contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents");
+    endTime = performance.now();
+    console.log(`simdjson.lazyParse took ${endTime - startTime} milliseconds`)
+
+
 
     const results = [];
     const details =
