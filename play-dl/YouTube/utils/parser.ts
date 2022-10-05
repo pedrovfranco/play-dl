@@ -5,8 +5,6 @@ import { YouTube } from '..';
 import { YouTubeThumbnail } from '../classes/Thumbnail';
 const { performance } = require('perf_hooks');
 
-const simdjson = require('simdjson');
-
 const BLURRED_THUMBNAILS = [
     '-oaymwEpCOADEI4CSFryq4qpAxsIARUAAAAAGAElAADIQj0AgKJDeAHtAZmZGUI=',
     '-oaymwEiCOADEI4CSFXyq4qpAxQIARUAAIhCGAFwAcABBu0BmZkZQg==',
@@ -45,18 +43,12 @@ export function ParseSearchResult(html: string, options?: ParseSearchInterface):
     .split('var ytInitialData = ')?.[1]
     ?.split(';</script>')[0]
     .split(/;\s*(var|const|let)\s/)[0];
-     
-    let startTime = performance.now();
-    const JSONbuffer = simdjson.lazyParse(data); // external (C++) parsed JSON object
-	var contents = JSONbuffer.valueForKeyPath("contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents");
-    let endTime = performance.now();
-    console.log(`simdjson.lazyParse took ${endTime - startTime} milliseconds`)
 
-
+    const json_data = JSON.parse(data);
 
     const results = [];
     const details =
-        contents.flatMap(
+    json_data.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents.flatMap(
             (s: any) => s.itemSectionRenderer?.contents
         );
     for (const detail of details) {
