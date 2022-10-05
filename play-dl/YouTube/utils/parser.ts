@@ -6,6 +6,7 @@ import { YouTubeThumbnail } from '../classes/Thumbnail';
 const jitson = require('jitson');
 
 const parser = jitson({sampleInterval: 10});
+let loggedSchema = false;
 
 const BLURRED_THUMBNAILS = [
     '-oaymwEpCOADEI4CSFryq4qpAxsIARUAAAAAGAElAADIQj0AgKJDeAHtAZmZGUI=',
@@ -50,9 +51,10 @@ export function ParseSearchResult(html: string, options?: ParseSearchInterface):
 
     const json_data = parser(data);
 
-    if (parser.schema != null)
+    if (parser.schema != null && !loggedSchema)
     {
         console.log(parser.schema);
+        loggedSchema = true;
     }
 
     const results = [];
