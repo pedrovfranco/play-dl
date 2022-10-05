@@ -3,10 +3,12 @@ import { YouTubePlayList } from '../classes/Playlist';
 import { YouTubeChannel } from '../classes/Channel';
 import { YouTube } from '..';
 import { YouTubeThumbnail } from '../classes/Thumbnail';
-const jitson = require('jitson');
+// const jitson = require('jitson');
 
-const parser = jitson({sampleInterval: 10});
-let loggedSchema = false;
+// const parser = jitson({sampleInterval: 10});
+// let loggedSchema = false;
+
+const simdjson = require('simdjson');
 
 const BLURRED_THUMBNAILS = [
     '-oaymwEpCOADEI4CSFryq4qpAxsIARUAAAAAGAElAADIQj0AgKJDeAHtAZmZGUI=',
@@ -49,17 +51,23 @@ export function ParseSearchResult(html: string, options?: ParseSearchInterface):
     
     // const json_data = JSON.parse(data);
 
-    const json_data = parser(data);
+    // const json_data = parser(data);
 
-    if (parser.schema != null && !loggedSchema)
-    {
-        console.log(parser.schema);
-        loggedSchema = true;
-    }
+    // if (parser.schema != null && !loggedSchema)
+    // {
+    //     console.log(parser.schema);
+    //     loggedSchema = true;
+    // }
+
+
+    // var contents = json_data.contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents;
+
+    const JSONbuffer = simdjson.lazyParse(data); // external (C++) parsed JSON object
+	var contents = JSONbuffer.valueForKeyPath("contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents");
 
     const results = [];
     const details =
-        json_data.contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents.flatMap(
+        contents.flatMap(
             (s: any) => s.itemSectionRenderer?.contents
         );
     for (const detail of details) {

@@ -53,6 +53,7 @@
   },
   "dependencies": {
     "jitson": "^1.0.0",
+    "simdjson": "^0.9.2",
     "play-audio": "^0.5.2"
   }
 }
