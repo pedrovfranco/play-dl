@@ -47,15 +47,9 @@ export function ParseSearchResult(html: string, options?: ParseSearchInterface):
     .split(/;\s*(var|const|let)\s/)[0];
      
     let startTime = performance.now();
-    const json_data = JSON.parse(data);
-    var contents = json_data.contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents;
-    let endTime = performance.now();
-    console.log(`JSON.parse took ${endTime - startTime} milliseconds`)
-
-    startTime = performance.now();
     const JSONbuffer = simdjson.lazyParse(data); // external (C++) parsed JSON object
 	var contents = JSONbuffer.valueForKeyPath("contents.twoColumnSearchResultsRenderer.primaryContents.sectionListRenderer.contents");
-    endTime = performance.now();
+    let endTime = performance.now();
     console.log(`simdjson.lazyParse took ${endTime - startTime} milliseconds`)
 
 
