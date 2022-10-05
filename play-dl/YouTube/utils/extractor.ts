@@ -1,6 +1,6 @@
 import { request } from './../../Request/index';
 import { format_decipher } from './cipher';
-import { YouTubeVideo } from '../classes/Video';
+import { VideoChapter, YouTubeVideo } from '../classes/Video';
 import { YouTubePlayList } from '../classes/Playlist';
 import { InfoData, StreamInfoData } from './constants';
 import { URL, URLSearchParams } from 'node:url';
@@ -22,7 +22,7 @@ const DEFAULT_API_KEY = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
 const video_pattern =
     /^((?:https?:)?\/\/)?(?:(?:www|m|music)\.)?((?:youtube\.com|youtu.be))(\/(?:[\w\-]+\?v=|shorts\/|embed\/|v\/)?)([\w\-]+)(\S+)?$/;
 const playlist_pattern =
-    /^((?:https?:)?\/\/)?(?:(?:www|m|music)\.)?((?:youtube\.com|youtu.be))\/(?:(playlist|watch))?(.*)?((\?|\&)list=)(PL|UU|LL|RD|OL)[a-zA-Z\d_-]{10,}(.*)?$/;
+    /^((?:https?:)?\/\/)?(?:(?:www|m|music)\.)?((?:youtube\.com|youtu.be))\/(?:(playlist|watch))?(.*)?((\?|\&)list=)(PL|UU|LL|RD|OL)[a-zA-Z\d_-]{10,}(&.*)?$/;
 /**
  * Validate YouTube URL or ID.
  *
@@ -41,26 +41,27 @@ const playlist_pattern =
  * ```
  */
 export function yt_validate(url: string): 'playlist' | 'video' | 'search' | false {
-    if (url.indexOf('list=') === -1) {
-        if (url.startsWith('https')) {
-            if (url.match(video_pattern)) {
+    const url_ = url.trim();
+    if (url_.indexOf('list=') === -1) {
+        if (url_.startsWith('https')) {
+            if (url_.match(video_pattern)) {
                 let id: string;
-                if (url.includes('youtu.be/')) id = url.split('youtu.be/')[1].split(/(\?|\/|&)/)[0];
-                else if (url.includes('youtube.com/embed/'))
-                    id = url.split('youtube.com/embed/')[1].split(/(\?|\/|&)/)[0];
-                else if (url.includes('youtube.com/shorts/'))
-                    id = url.split('youtube.com/shorts/')[1].split(/(\?|\/|&)/)[0];
-                else id = url.split('watch?v=')[1].split(/(\?|\/|&)/)[0];
-                if (id.match(video_id_pattern)) return 'video';
+                if (url_.includes('youtu.be/')) id = url_.split('youtu.be/')[1].split(/(\?|\/|&)/)[0];
+                else if (url_.includes('youtube.com/embed/'))
+                    id = url_.split('youtube.com/embed/')[1].split(/(\?|\/|&)/)[0];
+                else if (url_.includes('youtube.com/shorts/'))
+                    id = url_.split('youtube.com/shorts/')[1].split(/(\?|\/|&)/)[0];
+                else id = url_.split('watch?v=')[1]?.split(/(\?|\/|&)/)[0];
+                if (id?.match(video_id_pattern)) return 'video';
                 else return false;
             } else return false;
         } else {
-            if (url.match(video_id_pattern)) return 'video';
-            else if (url.match(playlist_id_pattern)) return 'playlist';
+            if (url_.match(video_id_pattern)) return 'video';
+            else if (url_.match(playlist_id_pattern)) return 'playlist';
             else return 'search';
         }
     } else {
-        if (!url.match(playlist_pattern)) return yt_validate(url.replace(/(\?|\&)list=[a-zA-Z\d_-]+/, ''));
+        if (!url_.match(playlist_pattern)) return yt_validate(url_.replace(/(\?|\&)list=[^&]*/, ''));
         else return 'playlist';
     }
 }
@@ -99,15 +100,16 @@ function extractVideoId(urlOrId: string): string | false {
 export function extractID(url: string): string {
     const check = yt_validate(url);
     if (!check || check === 'search') throw new Error('This is not a YouTube url or videoId or PlaylistID');
-    if (url.startsWith('https')) {
-        if (url.indexOf('list=') === -1) {
-            const video_id = extractVideoId(url);
+    const url_ = url.trim();
+    if (url_.startsWith('https')) {
+        if (url_.indexOf('list=') === -1) {
+            const video_id = extractVideoId(url_);
             if (!video_id) throw new Error('This is not a YouTube url or videoId or PlaylistID');
             return video_id;
         } else {
-            return url.split('list=')[1].split('&')[0];
+            return url_.split('list=')[1].split('&')[0];
         }
-    } else return url;
+    } else return url_;
 }
 /**
  * Basic function to get data from a YouTube url or ID.
@@ -127,12 +129,13 @@ export function extractID(url: string): string {
  */
 export async function video_basic_info(url: string, options: InfoOptions = {}): Promise<InfoData> {
     if (typeof url !== 'string') throw new Error('url parameter is not a URL string or a string of HTML');
+    const url_ = url.trim();
     let body: string;
     const cookieJar = {};
     if (options.htmldata) {
-        body = url;
+        body = url_;
     } else {
-        const video_id = extractVideoId(url);
+        const video_id = extractVideoId(url_);
         if (!video_id) throw new Error('This is not a YouTube Watch URL');
         const new_url = `https://www.youtube.com/watch?v=${video_id}&has_verified=1`;
         body = await request(new_url, {
@@ -148,7 +151,7 @@ export async function video_basic_info(url: string, options: InfoOptions = {}): 
     const player_data = body
         .split('var ytInitialPlayerResponse = ')?.[1]
         ?.split(';</script>')[0]
-        .split(/;\s*(var|const|let)\s/)[0];
+        .split(/(?<=}}});\s*(var|const|let)\s/)[0];
     if (!player_data) throw new Error('Initial Player Response Data is undefined.');
     const initial_data = body
         .split('var ytInitialData = ')?.[1]
@@ -186,7 +189,8 @@ export async function video_basic_info(url: string, options: InfoOptions = {}): 
             throw new Error(
                 `While getting info from url\n${
                     player_response.playabilityStatus.errorScreen.playerErrorMessageRenderer?.reason.simpleText ??
-                    player_response.playabilityStatus.errorScreen.playerKavRenderer?.reason.simpleText
+                    player_response.playabilityStatus.errorScreen.playerKavRenderer?.reason.simpleText ??
+                    player_response.playabilityStatus.reason
                 }`
             );
     }
@@ -215,16 +219,33 @@ export async function video_basic_info(url: string, options: InfoOptions = {}): 
     if (musicInfo) {
         musicInfo.forEach((x: any) => {
             if (!x.metadataRowRenderer) return;
-            const title = x.metadataRowRenderer.title.simpleText ?? x.metadataRowRenderer.title.runs[0].text;
-            if (title.toLowerCase() === 'song') {
-                music.push({});
-                music[music.length - 1].song =
-                    x.metadataRowRenderer.contents[0].simpleText ?? x.metadataRowRenderer.contents[0]?.runs?.[0]?.text;
-            } else if (music.length === 0) return;
-            else
-                music[music.length - 1][title.toLowerCase()] =
-                    x.metadataRowRenderer.contents[0].simpleText ?? x.metadataRowRenderer.contents[0]?.runs?.[0]?.text;
+            const row = x.metadataRowRenderer;
+
+            const title = row.title.simpleText ?? row.title.runs[0].text;
+            const contents = row.contents[0].simpleText ?? row.contents[0]?.runs?.[0]?.text;
+            const url = row.contents[0]?.runs?.[0]?.navigationEndpoint?.commandMetadata?.webCommandMetadata.url;
+
+            if (music.length === 0) music.push({});
+
+            music[music.length - 1][title.toLowerCase()] = url ? {text: contents, url: `https://www.youtube.com${url}`} : contents;
+
+            if (row.hasDividerLine) music.push({});
         });
+    }
+    const rawChapters =
+        initial_response.playerOverlays.playerOverlayRenderer.decoratedPlayerBarRenderer?.decoratedPlayerBarRenderer.playerBar?.multiMarkersPlayerBarRenderer.markersMap.find(
+            (m: any) => m.key === 'DESCRIPTION_CHAPTERS'
+        )?.value?.chapters;
+    const chapters: VideoChapter[] = [];
+    if (rawChapters) {
+        for (const { chapterRenderer } of rawChapters) {
+            chapters.push({
+                title: chapterRenderer.title.simpleText,
+                timestamp: parseSeconds(chapterRenderer.timeRangeStartMillis / 1000),
+                seconds: chapterRenderer.timeRangeStartMillis / 1000,
+                thumbnails: chapterRenderer.thumbnail.thumbnails
+            });
+        }
     }
     let upcomingDate;
     if (upcoming) {
@@ -268,7 +289,8 @@ export async function video_basic_info(url: string, options: InfoOptions = {}): 
         live: vid.isLiveContent,
         private: vid.isPrivate,
         discretionAdvised,
-        music
+        music,
+        chapters
     });
     let format = [];
     if (!upcoming) {
@@ -327,7 +349,7 @@ export async function video_stream_info(url: string, options: InfoOptions = {}):
     const player_data = body
         .split('var ytInitialPlayerResponse = ')?.[1]
         ?.split(';</script>')[0]
-        .split(/;\s*(var|const|let)\s/)[0];
+        .split(/(?<=}}});\s*(var|const|let)\s/)[0];
     if (!player_data) throw new Error('Initial Player Response Data is undefined.');
     const player_response = JSON.parse(player_data);
     let upcoming = false;
@@ -366,7 +388,8 @@ export async function video_stream_info(url: string, options: InfoOptions = {}):
             throw new Error(
                 `While getting info from url\n${
                     player_response.playabilityStatus.errorScreen.playerErrorMessageRenderer?.reason.simpleText ??
-                    player_response.playabilityStatus.errorScreen.playerKavRenderer?.reason.simpleText
+                    player_response.playabilityStatus.errorScreen.playerKavRenderer?.reason.simpleText ??
+                    player_response.playabilityStatus.reason
                 }`
             );
     }
@@ -440,7 +463,7 @@ function parseSeconds(seconds: number): string {
  * @returns Deciphered Video Info {@link InfoData}.
  */
 export async function video_info(url: string, options: InfoOptions = {}): Promise<InfoData> {
-    const data = await video_basic_info(url, options);
+    const data = await video_basic_info(url.trim(), options);
     return await decipher_info(data);
 }
 /**
@@ -485,16 +508,17 @@ export async function decipher_info<T extends InfoData | StreamInfoData>(
  */
 export async function playlist_info(url: string, options: PlaylistOptions = {}): Promise<YouTubePlayList> {
     if (!url || typeof url !== 'string') throw new Error(`Expected playlist url, received ${typeof url}!`);
-    if (!url.startsWith('https')) url = `https://www.youtube.com/playlist?list=${url}`;
-    if (url.indexOf('list=') === -1) throw new Error('This is not a Playlist URL');
+    let url_ = url.trim();
+    if (!url_.startsWith('https')) url_ = `https://www.youtube.com/playlist?list=${url_}`;
+    if (url_.indexOf('list=') === -1) throw new Error('This is not a Playlist URL');
 
-    if (url.includes('music.youtube.com')) {
-        const urlObj = new URL(url);
+    if (url_.includes('music.youtube.com')) {
+        const urlObj = new URL(url_);
         urlObj.hostname = 'www.youtube.com';
-        url = urlObj.toString();
+        url_ = urlObj.toString();
     }
 
-    const body = await request(url, {
+    const body = await request(url_, {
         headers: {
             'accept-language': options.language || 'en-US;q=0.9'
         }
@@ -517,8 +541,8 @@ export async function playlist_info(url: string, options: PlaylistOptions = {}):
             throw new Error(`While parsing playlist url\n${response.alerts[0].alertRenderer.text.runs[0].text}`);
         else throw new Error('While parsing playlist url\nUnknown Playlist Error');
     }
-    if (url.indexOf('watch?v=') !== -1) {
-        return getWatchPlaylist(response, body, url);
+    if (url_.indexOf('watch?v=') !== -1) {
+        return getWatchPlaylist(response, body, url_);
     } else return getNormalPlaylist(response, body);
 }
 /**
@@ -585,7 +609,7 @@ async function acceptViewerDiscretion(
     if (!sessionToken)
         throw new Error(`Unable to extract XSRF_TOKEN to accept the viewer discretion popup for video: ${videoId}.`);
 
-    const verificationResponse = await request(`https://www.youtube.com/youtubei/v1/verify_age?key=${apiKey}`, {
+    const verificationResponse = await request(`https://www.youtube.com/youtubei/v1/verify_age?key=${apiKey}&prettyPrint=false`, {
         method: 'POST',
         body: JSON.stringify({
             context: {
@@ -659,7 +683,7 @@ async function getAndroidFormats(videoId: string, cookieJar: { [key: string]: st
         body.split('innertubeApiKey":"')[1]?.split('"')[0] ??
         DEFAULT_API_KEY;
 
-    const response = await request(`https://www.youtube.com/youtubei/v1/player?key=${apiKey}`, {
+    const response = await request(`https://www.youtube.com/youtubei/v1/player?key=${apiKey}&prettyPrint=false`, {
         method: 'POST',
         body: JSON.stringify({
             context: {
@@ -684,7 +708,9 @@ async function getAndroidFormats(videoId: string, cookieJar: { [key: string]: st
 }
 
 function getWatchPlaylist(response: any, body: any, url: string): YouTubePlayList {
-    const playlist_details = response.contents.twoColumnWatchNextResults.playlist.playlist;
+    const playlist_details = response.contents.twoColumnWatchNextResults.playlist?.playlist;
+    if (!playlist_details)
+        throw new Error("Watch playlist unavailable due to YouTube layout changes.")
 
     const videos = getWatchPlaylistVideos(playlist_details.contents);
     const API_KEY =
@@ -800,7 +826,7 @@ function getWatchPlaylistVideos(data: any, limit = Infinity): YouTubeVideo[] {
                 thumbnails: info.thumbnail.thumbnails,
                 title: info.title.simpleText,
                 upcoming:
-                    info.thumbnailOverlays[0].thumbnailOverlayTimeStatusRenderer.style === 'UPCOMING' || undefined,
+                    info.thumbnailOverlays[0].thumbnailOverlayTimeStatusRenderer?.style === 'UPCOMING' || undefined,
                 channel: {
                     id: channel_info.navigationEndpoint.browseEndpoint.browseId || undefined,
                     name: channel_info.text || undefined,
